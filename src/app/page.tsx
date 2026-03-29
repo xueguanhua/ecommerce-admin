@@ -4,13 +4,20 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Package, ShoppingCart, MessageCircle, Users, Loader2 } from 'lucide-react';
-import { goodsApi, skuApi, commentApi } from '@/lib/wechat-cloud';
+import { goodsApi, skuApi, commentApi, orderApi } from '@/lib/wechat-cloud';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 interface StatsData {
   goodsCount: number;
   orderCount: number;
   commentCount: number;
   userCount: number;
+}
+
+interface DailyOrderData {
+  date: string;
+  count: number;
+  amount: number;
 }
 
 export default function DashboardPage() {
@@ -21,6 +28,14 @@ export default function DashboardPage() {
     commentCount: 0,
     userCount: 0,
   });
+  const [dailyOrders, setDailyOrders] = useState<DailyOrderData[]>([
+    { date: '03-24', count: 12, amount: 2400 },
+    { date: '03-25', count: 19, amount: 3800 },
+    { date: '03-26', count: 15, amount: 3000 },
+    { date: '03-27', count: 25, amount: 5000 },
+    { date: '03-28', count: 22, amount: 4400 },
+    { date: '03-29', count: 18, amount: 3600 },
+  ]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,11 +56,12 @@ export default function DashboardPage() {
       console.log('[Dashboard] 开始获取统计数据...');
 
       // 并行获取各项统计数据
-      const [goodsRes, skuRes, commentRes, userRes] = await Promise.allSettled([
-        goodsApi.list({ pageSize: 0, page: 1 }),     // 商品总数，pageSize=0 表示不返回列表只获取总数
-        skuApi.list({ pageSize: 0, page: 1 }),       // SKU总数，pageSize=0 表示不返回列表只获取总数
+      const [goodsRes, skuRes, commentRes, userRes, orderStatsRes] = await Promise.allSettled([
+        goodsApi.list({ limit: 0, skip: 0 }),     // 商品总数，limit=0 表示不返回列表只获取总数
+        skuApi.list({ limit: 0, skip: 0 }),       // SKU总数，limit=0 表示不返回列表只获取总数
         fetch('/api/comments/count').then(r => r.json()).catch(() => ({ count: 0 })), // 评论总数
         fetch('/api/customers/count').then(r => r.json()).catch(() => ({ count: 0 })), // 客户总数
+        orderApi.stats().catch(() => ({ daily: [] })), // 订单统计数据
       ]);
 
       // 打印各项结果
@@ -53,6 +69,7 @@ export default function DashboardPage() {
       console.log('[Dashboard] skuRes:', skuRes);
       console.log('[Dashboard] commentRes:', commentRes);
       console.log('[Dashboard] userRes:', userRes);
+      console.log('[Dashboard] orderStatsRes:', orderStatsRes);
 
       // 解析商品数量
       let goodsCount = 0;
@@ -91,6 +108,24 @@ export default function DashboardPage() {
         console.error('[Dashboard] userRes rejected:', userRes.reason);
       }
 
+      // 解析订单统计数据
+      let newDailyOrders = dailyOrders; // 默认使用现有模拟数据
+      if (orderStatsRes.status === 'fulfilled' && orderStatsRes.value) {
+        console.log('[Dashboard] orderStatsRes.value:', orderStatsRes.value);
+        // 假设响应结构为 { daily: [{ date: string, count: number, amount: number }, ...] }
+        const dailyData = orderStatsRes.value?.daily || orderStatsRes.value?.data?.daily || [];
+        if (dailyData.length > 0) {
+          // 转换数据格式以匹配图表
+          newDailyOrders = dailyData.map((item: any) => ({
+            date: item.date ? item.date.split('-').slice(1).join('-') : '未知', // 格式化为 MM-DD
+            count: item.count || 0,
+            amount: item.amount || item.totalAmount || 0,
+          }));
+        }
+      } else if (orderStatsRes.status === 'rejected') {
+        console.error('[Dashboard] orderStatsRes rejected:', orderStatsRes.reason);
+      }
+
       console.log('[Dashboard] 最终统计数据:', { goodsCount, orderCount, commentCount, userCount });
 
       setStats({
@@ -99,6 +134,7 @@ export default function DashboardPage() {
         commentCount,
         userCount,
       });
+      setDailyOrders(newDailyOrders);
     } catch (err) {
       console.error('获取统计数据失败:', err);
       setError('获取数据失败，请刷新重试');
@@ -245,25 +281,65 @@ export default function DashboardPage() {
         <Card className="card-hover">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              系统信息
+              <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              每日订单统计
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4 text-sm">
-            {[
-              { label: '云开发环境', value: '已配置', status: 'success' },
-              { label: '数据库', value: '已连接', status: 'success' },
-              { label: '云存储', value: '正常', status: 'success' },
-              { label: '云函数', value: '已部署', status: 'success' },
-            ].map((item) => (
-              <div key={item.label} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                <span className="text-muted-foreground">{item.label}</span>
-                <span className="flex items-center gap-2 font-medium">
-                  <span className={`w-2 h-2 rounded-full bg-${item.status === 'success' ? 'green-500' : 'red-500'}`} />
-                  {item.value}
-                </span>
-              </div>
-            ))}
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart
+                  data={dailyOrders}
+                  margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                  <XAxis 
+                    dataKey="date" 
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                  />
+                  <YAxis 
+                    stroke="hsl(var(--muted-foreground))"
+                    fontSize={12}
+                  />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--background))',
+                      borderColor: 'hsl(var(--border))',
+                      borderRadius: '8px',
+                      fontSize: '12px'
+                    }}
+                    formatter={(value, name) => {
+                      if (name === 'count') return [`${value} 单`, '订单数'];
+                      if (name === 'amount') return [`¥${value}`, '金额'];
+                      return [value, name];
+                    }}
+                  />
+                  <Legend 
+                    wrapperStyle={{ fontSize: '12px' }}
+                    formatter={(value) => {
+                      if (value === 'count') return '订单数';
+                      if (value === 'amount') return '金额';
+                      return value;
+                    }}
+                  />
+                  <Bar 
+                    dataKey="count" 
+                    name="订单数" 
+                    fill="hsl(var(--primary))" 
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={30}
+                  />
+                  <Bar 
+                    dataKey="amount" 
+                    name="金额" 
+                    fill="hsl(var(--purple))" 
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={30}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </CardContent>
         </Card>
       </div>
