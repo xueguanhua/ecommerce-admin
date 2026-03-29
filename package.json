@@ -50,6 +50,7 @@
   },
   "build": {
     "appId": "com.ecommerce.admin",
+    "publish": "never",
     "productName": "电商管理平台",
     "directories": {
       "output": "release"
