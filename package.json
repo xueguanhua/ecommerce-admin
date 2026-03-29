@@ -2,6 +2,8 @@
   "name": "ecommerce-admin",
   "version": "0.1.0",
   "private": true,
+  "description": "电商管理后台",
+  "author": "电商团队",
   "main": "main.js",
   "scripts": {
     "dev": "next dev",
@@ -67,7 +69,7 @@
       {
         "from": ".next/standalone",
         "to": ".",
-        "filter": ["**/*"]
+        "filter": ["**/*", "!package.json"]
       },
       {
         "from": ".next/static",
@@ -80,7 +82,11 @@
         "filter": ["**/*"]
       }
     ],
-    "asar": false,
+    "asar": true,
+    "asarUnpack": [
+      "resources/**"
+    ],
+    "hardLink": false,
     "mac": {
       "target": [
         {

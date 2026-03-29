@@ -42,10 +42,10 @@ export default function DashboardPage() {
 
       // 并行获取各项统计数据
       const [goodsRes, skuRes, commentRes, userRes] = await Promise.allSettled([
-        goodsApi.list({ limit: 1 }),     // 商品总数
-        skuApi.list({ pageSize: 1 }),       // SKU总数
-        commentApi.getAllList({ pageSize: 1 }), // 评论总数
-        fetch('/api/users/count').then(r => r.json()).catch(() => ({ count: 0 })), // 用户总数
+        goodsApi.list({ pageSize: 0, page: 1 }),     // 商品总数，pageSize=0 表示不返回列表只获取总数
+        skuApi.list({ pageSize: 0, page: 1 }),       // SKU总数，pageSize=0 表示不返回列表只获取总数
+        fetch('/api/comments/count').then(r => r.json()).catch(() => ({ count: 0 })), // 评论总数
+        fetch('/api/customers/count').then(r => r.json()).catch(() => ({ count: 0 })), // 客户总数
       ]);
 
       // 打印各项结果
@@ -58,7 +58,8 @@ export default function DashboardPage() {
       let goodsCount = 0;
       if (goodsRes.status === 'fulfilled' && goodsRes.value) {
         console.log('[Dashboard] goodsRes.value:', goodsRes.value);
-        goodsCount = goodsRes.value?.data?.length || 0;
+        // 假设响应结构为 { data: { total: number, list: [...] } }
+        goodsCount = goodsRes.value?.data?.total || 0;
       } else if (goodsRes.status === 'rejected') {
         console.error('[Dashboard] goodsRes rejected:', goodsRes.reason);
       }
@@ -67,7 +68,7 @@ export default function DashboardPage() {
       let orderCount = 0;
       if (skuRes.status === 'fulfilled' && skuRes.value) {
         console.log('[Dashboard] skuRes.value:', skuRes.value);
-        orderCount = skuRes.value?.data?.length || 0;
+        orderCount = skuRes.value?.data?.total || 0;
       } else if (skuRes.status === 'rejected') {
         console.error('[Dashboard] skuRes rejected:', skuRes.reason);
       }
@@ -76,12 +77,12 @@ export default function DashboardPage() {
       let commentCount = 0;
       if (commentRes.status === 'fulfilled' && commentRes.value) {
         console.log('[Dashboard] commentRes.value:', commentRes.value);
-        commentCount = commentRes.value?.data?.length || 0;
+        commentCount = commentRes.value?.count || 0;
       } else if (commentRes.status === 'rejected') {
         console.error('[Dashboard] commentRes rejected:', commentRes.reason);
       }
 
-      // 解析用户数量
+      // 解析客户数量
       let userCount = 0;
       if (userRes.status === 'fulfilled' && userRes.value) {
         console.log('[Dashboard] userRes.value:', userRes.value);
@@ -129,7 +130,7 @@ export default function DashboardPage() {
       bgColor: 'from-orange-500/10 to-amber-500/10',
     },
     {
-      title: '用户总数',
+      title: '客户总数',
       value: stats.userCount,
       icon: Users,
       color: 'from-purple-500 to-pink-500',
