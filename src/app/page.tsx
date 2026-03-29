@@ -1,51 +1,141 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Package, ShoppingCart, MessageCircle, Users } from 'lucide-react';
+import { Package, ShoppingCart, MessageCircle, Users, Loader2 } from 'lucide-react';
+import { goodsApi, skuApi, commentApi } from '@/lib/wechat-cloud';
 
-// 模拟数据，实际应从 API 获取
-const stats = [
-  {
-    title: '商品总数',
-    value: '128',
-    icon: Package,
-    color: 'from-blue-500 to-cyan-500',
-    bgColor: 'from-blue-500/10 to-cyan-500/10',
-  },
-  {
-    title: '订单总数',
-    value: '56',
-    icon: ShoppingCart,
-    color: 'from-green-500 to-emerald-500',
-    bgColor: 'from-green-500/10 to-emerald-500/10',
-  },
-  {
-    title: '消息总数',
-    value: '234',
-    icon: MessageCircle,
-    color: 'from-orange-500 to-amber-500',
-    bgColor: 'from-orange-500/10 to-amber-500/10',
-  },
-  {
-    title: '客户总数',
-    value: '12',
-    icon: Users,
-    color: 'from-purple-500 to-pink-500',
-    bgColor: 'from-purple-500/10 to-pink-500/10',
-  },
-];
+interface StatsData {
+  goodsCount: number;
+  orderCount: number;
+  commentCount: number;
+  userCount: number;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
+  const [stats, setStats] = useState<StatsData>({
+    goodsCount: 0,
+    orderCount: 0,
+    commentCount: 0,
+    userCount: 0,
+  });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const user = localStorage.getItem('user');
     if (!user) {
       router.push('/login');
+      return;
     }
+    fetchStats();
   }, [router]);
+
+  const fetchStats = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      console.log('[Dashboard] 开始获取统计数据...');
+
+      // 并行获取各项统计数据
+      const [goodsRes, skuRes, commentRes, userRes] = await Promise.allSettled([
+        goodsApi.list({ limit: 1 }),     // 商品总数
+        skuApi.list({ pageSize: 1 }),       // SKU总数
+        commentApi.getAllList({ pageSize: 1 }), // 评论总数
+        fetch('/api/users/count').then(r => r.json()).catch(() => ({ count: 0 })), // 用户总数
+      ]);
+
+      // 打印各项结果
+      console.log('[Dashboard] goodsRes:', goodsRes);
+      console.log('[Dashboard] skuRes:', skuRes);
+      console.log('[Dashboard] commentRes:', commentRes);
+      console.log('[Dashboard] userRes:', userRes);
+
+      // 解析商品数量
+      let goodsCount = 0;
+      if (goodsRes.status === 'fulfilled' && goodsRes.value) {
+        console.log('[Dashboard] goodsRes.value:', goodsRes.value);
+        goodsCount = goodsRes.value?.data?.length || 0;
+      } else if (goodsRes.status === 'rejected') {
+        console.error('[Dashboard] goodsRes rejected:', goodsRes.reason);
+      }
+
+      // 解析SKU数量
+      let orderCount = 0;
+      if (skuRes.status === 'fulfilled' && skuRes.value) {
+        console.log('[Dashboard] skuRes.value:', skuRes.value);
+        orderCount = skuRes.value?.data?.length || 0;
+      } else if (skuRes.status === 'rejected') {
+        console.error('[Dashboard] skuRes rejected:', skuRes.reason);
+      }
+
+      // 解析评论数量
+      let commentCount = 0;
+      if (commentRes.status === 'fulfilled' && commentRes.value) {
+        console.log('[Dashboard] commentRes.value:', commentRes.value);
+        commentCount = commentRes.value?.data?.length || 0;
+      } else if (commentRes.status === 'rejected') {
+        console.error('[Dashboard] commentRes rejected:', commentRes.reason);
+      }
+
+      // 解析用户数量
+      let userCount = 0;
+      if (userRes.status === 'fulfilled' && userRes.value) {
+        console.log('[Dashboard] userRes.value:', userRes.value);
+        userCount = userRes.value?.count || 0;
+      } else if (userRes.status === 'rejected') {
+        console.error('[Dashboard] userRes rejected:', userRes.reason);
+      }
+
+      console.log('[Dashboard] 最终统计数据:', { goodsCount, orderCount, commentCount, userCount });
+
+      setStats({
+        goodsCount,
+        orderCount,
+        commentCount,
+        userCount,
+      });
+    } catch (err) {
+      console.error('获取统计数据失败:', err);
+      setError('获取数据失败，请刷新重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const statsCards = [
+    {
+      title: '商品总数',
+      value: stats.goodsCount,
+      icon: Package,
+      color: 'from-blue-500 to-cyan-500',
+      bgColor: 'from-blue-500/10 to-cyan-500/10',
+    },
+    {
+      title: 'SKU总数',
+      value: stats.orderCount,
+      icon: ShoppingCart,
+      color: 'from-green-500 to-emerald-500',
+      bgColor: 'from-green-500/10 to-emerald-500/10',
+    },
+    {
+      title: '评论总数',
+      value: stats.commentCount,
+      icon: MessageCircle,
+      color: 'from-orange-500 to-amber-500',
+      bgColor: 'from-orange-500/10 to-amber-500/10',
+    },
+    {
+      title: '用户总数',
+      value: stats.userCount,
+      icon: Users,
+      color: 'from-purple-500 to-pink-500',
+      bgColor: 'from-purple-500/10 to-pink-500/10',
+    },
+  ];
 
   return (
     <div className="space-y-8">
@@ -65,9 +155,35 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Card key={i} className="animate-pulse">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <div className="h-4 bg-muted rounded w-20" />
+                <div className="h-8 w-8 bg-muted rounded" />
+              </CardHeader>
+              <CardContent>
+                <div className="h-8 bg-muted rounded w-16 mb-2" />
+                <div className="h-3 bg-muted rounded w-24" />
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
       {/* Stats Cards */}
+      {!loading && !error && (
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {stats.map((stat, index) => {
+        {statsCards.map((stat, index) => {
           const Icon = stat.icon;
           return (
             <Card 
@@ -96,6 +212,7 @@ export default function DashboardPage() {
           );
         })}
       </div>
+      )}
 
       {/* Quick Actions */}
       <div className="grid gap-4 md:grid-cols-2">
