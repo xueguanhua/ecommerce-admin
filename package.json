@@ -50,7 +50,6 @@
   },
   "build": {
     "appId": "com.ecommerce.admin",
-    "publish": "never",
     "productName": "电商管理平台",
     "directories": {
       "output": "release"
@@ -62,17 +61,7 @@
       ".env.local",
       {
         "from": ".next/standalone",
-        "to": ".next/standalone",
-        "filter": ["**/*"]
-      },
-      {
-        "from": ".next/static",
-        "to": ".next/standalone/.next/static",
-        "filter": ["**/*"]
-      },
-      {
-        "from": "public",
-        "to": ".next/standalone/public",
+        "to": ".",
         "filter": ["**/*"]
       }
     ],

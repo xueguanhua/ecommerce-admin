@@ -13,12 +13,23 @@ console.log('[Electron] isDev:', isDev);
 function startNextServer() {
   return new Promise((resolve, reject) => {
     // standalone 模式下的服务器路径
-    const standalonePath = path.join(__dirname, '.next', 'standalone');
-    const serverPath = path.join(standalonePath, 'server.js');
+    // 因为 files 配置将 .next/standalone 复制到应用根目录
+    const serverPath = path.join(__dirname, 'server.js');
     
-    console.log('[Electron] Standalone path:', standalonePath);
+    console.log('[Electron] Current directory:', __dirname);
     console.log('[Electron] Server path:', serverPath);
     console.log('[Electron] Server exists:', fs.existsSync(serverPath));
+    
+    // 列出应用根目录内容用于调试
+    console.log('[Electron] App root directory contents:');
+    try {
+      const files = fs.readdirSync(__dirname);
+      files.forEach(file => {
+        console.log(`  - ${file}`);
+      });
+    } catch (err) {
+      console.error('[Electron] Error reading directory:', err);
+    }
     
     // 检查 standalone 是否存在
     if (!fs.existsSync(serverPath)) {
@@ -30,7 +41,7 @@ function startNextServer() {
     
     // 启动 Next.js standalone server
     nextServer = spawn('node', ['server.js'], {
-      cwd: standalonePath,
+      cwd: __dirname,
       env: { 
         ...process.env, 
         NODE_ENV: 'production', 
