@@ -1,0 +1,6 @@
+{
+  "name": "goodsCrud",
+  "version": "1.0.0",
+  "description": "商品(SPU) CRUD 云函数",
+  "main": "index.js"
+}

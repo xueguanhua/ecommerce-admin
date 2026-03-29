@@ -1,0 +1,6 @@
+{
+  "name": "skuCrud",
+  "version": "1.0.0",
+  "description": "SKU CRUD 云函数",
+  "main": "index.js"
+}
