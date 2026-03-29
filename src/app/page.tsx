@@ -292,50 +292,57 @@ export default function DashboardPage() {
                   data={dailyOrders}
                   margin={{ top: 10, right: 10, left: 0, bottom: 10 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--muted))" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
                     dataKey="date" 
-                    stroke="hsl(var(--muted-foreground))"
+                    stroke="#6b7280"
                     fontSize={12}
                   />
                   <YAxis 
-                    stroke="hsl(var(--muted-foreground))"
+                    yAxisId="left"
+                    stroke="#3b82f6"
                     fontSize={12}
+                    label={{ value: '订单数', angle: -90, position: 'insideLeft', fill: '#3b82f6', fontSize: 10 }}
+                  />
+                  <YAxis 
+                    yAxisId="right"
+                    orientation="right"
+                    stroke="#8b5cf6"
+                    fontSize={12}
+                    label={{ value: '金额', angle: 90, position: 'insideRight', fill: '#8b5cf6', fontSize: 10 }}
                   />
                   <Tooltip 
                     contentStyle={{ 
-                      backgroundColor: 'hsl(var(--background))',
-                      borderColor: 'hsl(var(--border))',
+                      backgroundColor: '#ffffff',
+                      borderColor: '#e5e7eb',
                       borderRadius: '8px',
-                      fontSize: '12px'
+                      fontSize: '12px',
+                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }}
                     formatter={(value, name) => {
-                      if (name === 'count') return [`${value} 单`, '订单数'];
-                      if (name === 'amount') return [`¥${value}`, '金额'];
+                      if (name === '订单数') return [`${value} 单`, '订单数'];
+                      if (name === '金额') return [`¥${value}`, '金额'];
                       return [value, name];
                     }}
                   />
                   <Legend 
                     wrapperStyle={{ fontSize: '12px' }}
-                    formatter={(value) => {
-                      if (value === 'count') return '订单数';
-                      if (value === 'amount') return '金额';
-                      return value;
-                    }}
                   />
                   <Bar 
                     dataKey="count" 
                     name="订单数" 
-                    fill="hsl(var(--primary))" 
+                    yAxisId="left"
+                    fill="#3b82f6" 
                     radius={[4, 4, 0, 0]}
-                    maxBarSize={30}
+                    maxBarSize={20}
                   />
                   <Bar 
                     dataKey="amount" 
                     name="金额" 
-                    fill="hsl(var(--purple))" 
+                    yAxisId="right"
+                    fill="#8b5cf6" 
                     radius={[4, 4, 0, 0]}
-                    maxBarSize={30}
+                    maxBarSize={20}
                   />
                 </BarChart>
               </ResponsiveContainer>
